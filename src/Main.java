@@ -1,14 +1,13 @@
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.random.RandomGenerator;
 
-public class Main {
-    private record Objet(int valeur, int poids) {}
-    private record Result(int poids, List<List<Boolean>> D) {}
+// TODO changer les List par des Arrays
 
-    private static Result sac (int nombreObjet, int perturbation, int poidsMinObjet, int poidsMaxObjet, int poidsMaxSac, RandomGenerator rand) {
+public class Main {
+    private record Objet(int valeur, int poids, int indice) {}
+    private record Result(int poids, boolean[] objets) {}
+
+    private static Result sac(int nombreObjet, int perturbation, int poidsMinObjet, int poidsMaxObjet, int poidsMaxSac, RandomGenerator rand) {
         List<Objet> objets = createObjectsList(nombreObjet, perturbation, poidsMinObjet, poidsMaxObjet, rand);
         List<Integer> G = createGList(poidsMaxSac);
         List<List<Boolean>> D = createDList(nombreObjet, poidsMaxSac);
@@ -23,32 +22,46 @@ public class Main {
             }
         }
 
-        return new Result(G.get(poidsMaxSac), D);
+        boolean[] objetsPris = new boolean[nombreObjet];
+
+        int poidsRestant = G.get(poidsMaxSac);
+        for (int k = nombreObjet - 1; k >= 0; --k) {
+            if (D.get(k).get(poidsRestant)) {
+                objetsPris[k] = true;
+                poidsRestant -= objets.get(k).poids();
+            } else {
+                objetsPris[k] = false;
+            }
+        }
+
+        return new Result(G.get(poidsMaxSac), objetsPris);
     }
 
     private static Result sacGlouton(int nombreObjet, int perturbation, int poidsMinObjet, int poidsMaxObjet, int poidsMaxSac, RandomGenerator rand) {
         List<Objet> objets = createObjectsList(nombreObjet, perturbation, poidsMinObjet, poidsMaxObjet, rand);
-        List<Integer> G = createGList(poidsMaxSac);
-        List<List<Boolean>> D = createDList(nombreObjet, poidsMaxSac);
 
         objets.sort((Objet a, Objet b) -> {
-            int prioA = a.valeur() / a.poids();
-            int prioB = b.valeur() / b.poids();
-            return prioB - prioA;
+            float prioB = (float) b.valeur() / b.poids();
+            float prioA = (float) a.valeur() / a.poids();
+
+            if (prioB > prioA) return 1;
+            else if (prioA > prioB) return -1;
+
+            return 0;
         });
 
-        for (int k = 0; k < objets.size(); ++k) {
-            Objet objetK = objets.get(k);
-            for (int y = poidsMaxSac; y >= objetK.poids(); --y) {
-                G.set(y, G.get(y - objetK.poids()) + objetK.valeur());
-                if () {
-
-                }
-                D.get(k).set(y, true);
+        boolean[] objetsPris = new boolean[nombreObjet];
+        int poidsRestant = poidsMaxSac;
+        for (Objet objet : objets) {
+            if (poidsRestant >= objet.poids()) {
+                poidsRestant -= objet.poids();
+                objetsPris[objet.indice()] = true;
+            } else {
+                objetsPris[objet.indice()] = false;
             }
         }
 
-        return null;
+        return new Result(poidsMaxSac - poidsRestant, objetsPris);
     }
 
 
@@ -58,7 +71,7 @@ public class Main {
         for (int i = 0; i < nombreObjet; ++i) {
             int poids = rand.nextInt(poidsMinObjet, poidsMaxObjet + 1);
             int bruit = rand.nextInt(-perturbation, perturbation + 1);
-            objets.add(new Objet(poids + bruit, poids));
+            objets.add(new Objet(poids + bruit, poids, i));
         }
 
         return objets;
